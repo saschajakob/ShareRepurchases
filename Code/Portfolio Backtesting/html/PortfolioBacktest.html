@@ -1,0 +1,684 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>PortfolioBacktest</title><meta name="generator" content="MATLAB 9.5"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2019-08-16"><meta name="DC.source" content="PortfolioBacktest.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><pre class="codeinput"><span class="keyword">function</span> [TopPerformance,BottomPerformance,top_portfolio_statistics,bottom_portfolio_statistics,portfolio_returns,performance_plot,performance_plot_log,obs_plot] = <span class="keyword">...</span>
+    PortfolioBacktest(dataset,year_start,year_end,window,quantiles,top_index_criteria,bottom_index_criteria,<span class="keyword">...</span>
+    rebalancing_intervall,index_variables,TopPerfModel,BottomPerfModel)
+
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+<span class="comment">% This function backtests the portfolio performances of the share</span>
+<span class="comment">% repruchase strategy for the top portolio and the bottom portfolio for the</span>
+<span class="comment">% specified index thresholds.</span>
+<span class="comment">%</span>
+<span class="comment">% Inputs: Data, Starting Year, Ending Year, estimation window lenght,</span>
+<span class="comment">% quantiles, top criteria, bottom criteria, rebalancing frequency, index</span>
+<span class="comment">% variables, and performance evaluation models</span>
+<span class="comment">%</span>
+<span class="comment">% Ouput: Performance evaluation, portfolio statistics, and Time-Series</span>
+<span class="comment">%</span>
+<span class="comment">% Author: Sascha Jakob</span>
+<span class="comment">%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</span>
+
+<span class="comment">% Time Period and Dataset/Variables</span>
+time_period = dataset.year&gt;=(year_start-(window/12))&amp;dataset.year&lt;=(year_end);
+dataset = dataset(time_period,:);
+dataset.time = dataset.time-min(dataset.time)-(window-1);
+dataset = dataset(:, ismember(dataset.Properties.VariableNames,<span class="keyword">...</span>
+    {<span class="string">'month'</span>,<span class="string">'time'</span>,<span class="string">'dealnumber'</span>,<span class="string">'year'</span>,<span class="string">'permno'</span>,<span class="string">'time'</span>,<span class="string">'entropy_H'</span>,<span class="keyword">...</span>
+    <span class="string">'entropy_I'</span>,<span class="string">'cash_atl1'</span>,<span class="string">'ivol'</span>,<span class="string">'top10instown_percl1'</span>,<span class="string">'payout_yield_all'</span>,<span class="keyword">...</span>
+    <span class="string">'ret'</span>,<span class="string">'rf'</span>,<span class="string">'mktrf'</span>,<span class="string">'smb'</span>,<span class="string">'hml'</span>,<span class="string">'umd'</span>,<span class="string">'rmw'</span>,<span class="string">'cma'</span>,<span class="string">'ps_vwf'</span>,<span class="string">'mkvalt'</span>,<span class="keyword">...</span>
+    <span class="string">'vol_shares_mean'</span>, <span class="string">'vol_dollar_mean'</span>,<span class="string">'ret_sd'</span>,<span class="string">'buyback'</span>, <span class="string">'retrf'</span>}));
+
+dataset.ret(isnan(dataset.ret)) = 0;
+dataset.retrf(isnan(dataset.retrf))=0;
+
+<span class="comment">% Inital month</span>
+estimation_data = dataset.time&gt;=(0-window+1)&amp;dataset.time&lt;=(0);
+estimation_set = dataset(estimation_data,:);
+quantile_data = estimation_set.buyback==1;
+quantile_set = estimation_set(quantile_data,:);
+quantile_set = quantile_set(:, ismember(quantile_set.Properties.VariableNames, {<span class="string">'dealnumber'</span>,<span class="string">'year'</span>,<span class="string">'permno'</span>,<span class="string">'time'</span>,<span class="string">'entropy_H'</span>,<span class="keyword">...</span>
+    <span class="string">'entropy_I'</span>,<span class="string">'cash_atl1'</span>,<span class="string">'ivol'</span>,<span class="string">'top10instown_percl1'</span>,<span class="string">'payout_yield_all'</span>}));
+return_sample  = dataset.time==0;
+return_data = dataset(return_sample,:);
+
+    quantile_set = sortrows(quantile_set, {<span class="string">'year'</span>,<span class="string">'permno'</span>,<span class="string">'time'</span>});
+        quantile_set.H_quantile = yearly_quantiles(quantile_set.entropy_H,quantiles,quantile_set.year);
+        quantile_set.H_quantile(quantile_set.H_quantile==0)=NaN;
+        quantile_set.I_quantile = yearly_quantiles(quantile_set.entropy_I,quantiles,quantile_set.year);
+        quantile_set.I_quantile(quantile_set.I_quantile==0)=NaN;
+        quantile_set.cash_quantile = yearly_quantiles(quantile_set.cash_atl1,quantiles,quantile_set.year);
+        quantile_set.cash_quantile(quantile_set.cash_quantile==0)=NaN;
+        quantile_set.ivol_quantile = yearly_quantiles(quantile_set.ivol,quantiles,quantile_set.year);
+        quantile_set.ivol_quantile(quantile_set.ivol_quantile==0)=NaN;
+        quantile_set.ownership_quantile = yearly_quantiles(quantile_set.top10instown_percl1,quantiles,quantile_set.year);
+        quantile_set.ownership_quantile(quantile_set.ownership_quantile==0)=NaN;
+        quantile_set.payout_quantile = yearly_quantiles(quantile_set.payout_yield_all,quantiles,quantile_set.year);
+        quantile_set.payout_quantile(quantile_set.payout_quantile==0)=NaN;
+    quantile_set = sortrows(quantile_set, {<span class="string">'permno'</span>,<span class="string">'time'</span>});
+
+quantile_set = quantile_set(:, ismember(quantile_set.Properties.VariableNames, {<span class="string">'dealnumber'</span>,<span class="string">'permno'</span>,<span class="keyword">...</span>
+    <span class="string">'H_quantile'</span>,<span class="string">'I_quantile'</span>,<span class="string">'cash_quantile'</span>,<span class="string">'ivol_quantile'</span>,<span class="string">'ownership_quantile'</span>,<span class="string">'payout_quantile'</span>}));
+
+estimation_set = outerjoin(estimation_set,quantile_set,<span class="string">'Keys'</span>,{<span class="string">'permno'</span>,<span class="string">'dealnumber'</span>},<span class="string">'MergeKeys'</span>,true);
+estimation_set.ownership_quantile = estimation_set.ownership_quantile.*(-1)+(quantiles+1);
+
+  estimation_set.index = sum(table2array(estimation_set(:,ismember(estimation_set.Properties.VariableNames,<span class="keyword">...</span>
+    index_variables))),2);
+
+top_portfolio_data = estimation_set(estimation_set.index &gt;=top_index_criteria,:);
+top_portfolio_data = sortrows(top_portfolio_data, {<span class="string">'permno'</span>,<span class="string">'time'</span>});
+top_stocks = unique(top_portfolio_data.permno); <span class="comment">% Extract permno of top stocks to invest during the next quarter</span>
+
+bottom_portfolio_data = estimation_set(estimation_set.index &lt;=bottom_index_criteria,:);
+bottom_portfolio_data = sortrows(bottom_portfolio_data, {<span class="string">'permno'</span>,<span class="string">'time'</span>});
+bottom_stocks = unique(bottom_portfolio_data.permno); <span class="comment">% Extract permno of bottom stocks to invest during the next quarter</span>
+
+portfolio_ret = [unique(return_data.month) 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+
+<span class="comment">% Next Period weights</span>
+return_sample = dataset.time==1;
+return_data = dataset(return_sample,:);
+
+    top_portfolio_data = return_data(ismember(return_data.permno,top_stocks),<span class="keyword">...</span>
+    ismember(return_data.Properties.VariableNames, {<span class="string">'ret'</span> <span class="string">'retrf'</span> <span class="string">'mktrf'</span> <span class="string">'rf'</span><span class="keyword">...</span>
+    <span class="string">'smb'</span> <span class="string">'hml'</span> <span class="string">'umd'</span> <span class="string">'cma'</span> <span class="string">'rmw'</span> <span class="string">'ps_vwf'</span>}));
+    top_stocks_w = zeros(height(top_portfolio_data),1);
+    top_stocks_w(:) = 1/height(top_portfolio_data);
+
+    bottom_portfolio_data = return_data(ismember(return_data.permno,bottom_stocks),<span class="keyword">...</span>
+    ismember(return_data.Properties.VariableNames, {<span class="string">'ret'</span> <span class="string">'retrf'</span> <span class="string">'mktrf'</span> <span class="string">'rf'</span><span class="keyword">...</span>
+    <span class="string">'smb'</span> <span class="string">'hml'</span> <span class="string">'umd'</span> <span class="string">'cma'</span> <span class="string">'rmw'</span> <span class="string">'ps_vwf'</span>}));
+    bottom_stocks_w = zeros(height(bottom_portfolio_data),1);
+    bottom_stocks_w(:) = 1/height(bottom_portfolio_data);
+
+<span class="comment">% subsequent months</span>
+<span class="keyword">for</span> i = 1:max(dataset.time)
+
+    <span class="keyword">if</span> mod(i,rebalancing_intervall)==0
+
+    estimation_data = dataset.time&gt;=(i-window+1)&amp;dataset.time&lt;=(i);
+    estimation_set = dataset(estimation_data,:);
+    quantile_data = estimation_set.buyback==1;
+    quantile_set = estimation_set(quantile_data,:);
+    quantile_set = quantile_set(:, ismember(quantile_set.Properties.VariableNames, {<span class="string">'dealnumber'</span>,<span class="string">'year'</span>,<span class="string">'permno'</span>,<span class="string">'time'</span>,<span class="string">'entropy_H'</span>,<span class="keyword">...</span>
+    <span class="string">'entropy_I'</span>,<span class="string">'cash_atl1'</span>,<span class="string">'ivol'</span>,<span class="string">'top10instown_percl1'</span>,<span class="string">'payout_yield_all'</span>}));
+    return_sample = dataset.time==i;
+    return_data = dataset(return_sample,:);
+
+    top_portfolio_data = return_data(ismember(return_data.permno,top_stocks),<span class="keyword">...</span>
+    ismember(return_data.Properties.VariableNames, {<span class="string">'ret'</span> <span class="string">'retrf'</span> <span class="string">'mktrf'</span> <span class="string">'rf'</span><span class="keyword">...</span>
+    <span class="string">'smb'</span> <span class="string">'hml'</span> <span class="string">'umd'</span> <span class="string">'cma'</span> <span class="string">'rmw'</span> <span class="string">'ps_vwf'</span>}));
+
+    bottom_portfolio_data = return_data(ismember(return_data.permno,bottom_stocks),<span class="keyword">...</span>
+    ismember(return_data.Properties.VariableNames, {<span class="string">'ret'</span> <span class="string">'retrf'</span> <span class="string">'mktrf'</span> <span class="string">'rf'</span><span class="keyword">...</span>
+    <span class="string">'smb'</span> <span class="string">'hml'</span> <span class="string">'umd'</span> <span class="string">'cma'</span> <span class="string">'rmw'</span> <span class="string">'ps_vwf'</span>}));
+
+        <span class="keyword">if</span> height(top_portfolio_data)==length(top_stocks_w)
+            top_stocks_w = top_stocks_w;
+        <span class="keyword">else</span>
+             top_stocks_w = zeros(height(top_portfolio_data),1);
+             top_stocks_w(:) = 1/height(top_portfolio_data);
+        <span class="keyword">end</span>
+
+        <span class="keyword">if</span> height(bottom_portfolio_data)==length(bottom_stocks_w)
+             bottom_stocks_w = bottom_stocks_w;
+        <span class="keyword">else</span>
+             bottom_stocks_w = zeros(height(bottom_portfolio_data),1);
+            bottom_stocks_w(:) = 1/height(bottom_portfolio_data);
+        <span class="keyword">end</span>
+
+    temp_ret = [ unique(return_data.month) unique(return_data.time) top_stocks_w'*top_portfolio_data.ret bottom_stocks_w'*bottom_portfolio_data.ret <span class="keyword">...</span>
+        mean(top_portfolio_data.mktrf + top_portfolio_data.rf) length(top_portfolio_data.ret) length(bottom_portfolio_data.ret) top_stocks_w'*top_portfolio_data.retrf<span class="keyword">...</span>
+        bottom_stocks_w'*bottom_portfolio_data.retrf mean(top_portfolio_data.mktrf) mean(top_portfolio_data.smb) mean(top_portfolio_data.hml)<span class="keyword">...</span>
+        mean(top_portfolio_data.umd) mean(top_portfolio_data.rmw) mean(top_portfolio_data.cma) mean(top_portfolio_data.ps_vwf)<span class="keyword">...</span>
+        mean(top_portfolio_data.rf)];
+
+    portfolio_ret = [portfolio_ret; temp_ret]; <span class="comment">%#ok&lt;AGROW&gt;</span>
+
+    quantile_set = sortrows(quantile_set, {<span class="string">'year'</span>,<span class="string">'permno'</span>,<span class="string">'time'</span>});
+        quantile_set.H_quantile = yearly_quantiles(quantile_set.entropy_H,quantiles,quantile_set.year);
+        quantile_set.H_quantile(quantile_set.H_quantile==0)=NaN;
+        quantile_set.I_quantile = yearly_quantiles(quantile_set.entropy_I,quantiles,quantile_set.year);
+        quantile_set.I_quantile(quantile_set.I_quantile==0)=NaN;
+        quantile_set.cash_quantile = yearly_quantiles(quantile_set.cash_atl1,quantiles,quantile_set.year);
+        quantile_set.cash_quantile(quantile_set.cash_quantile==0)=NaN;
+        quantile_set.ivol_quantile = yearly_quantiles(quantile_set.ivol,quantiles,quantile_set.year);
+        quantile_set.ivol_quantile(quantile_set.ivol_quantile==0)=NaN;
+        quantile_set.ownership_quantile = yearly_quantiles(quantile_set.top10instown_percl1,quantiles,quantile_set.year);
+        quantile_set.ownership_quantile(quantile_set.ownership_quantile==0)=NaN;
+        quantile_set.payout_quantile = yearly_quantiles(quantile_set.payout_yield_all,quantiles,quantile_set.year);
+        quantile_set.payout_quantile(quantile_set.payout_quantile==0)=NaN;
+    quantile_set = sortrows(quantile_set, {<span class="string">'permno'</span>,<span class="string">'time'</span>});
+
+    quantile_set = quantile_set(:, ismember(quantile_set.Properties.VariableNames, {<span class="string">'dealnumber'</span>,<span class="string">'permno'</span>,<span class="keyword">...</span>
+        <span class="string">'H_quantile'</span>,<span class="string">'I_quantile'</span>,<span class="string">'cash_quantile'</span>,<span class="string">'ivol_quantile'</span>,<span class="string">'ownership_quantile'</span>,<span class="string">'payout_quantile'</span>}));
+
+    estimation_set = outerjoin(estimation_set,quantile_set,<span class="string">'Keys'</span>,{<span class="string">'permno'</span>,<span class="string">'dealnumber'</span>},<span class="string">'MergeKeys'</span>,true);
+
+    estimation_set.ownership_quantile = estimation_set.ownership_quantile.*(-1)+(quantiles+1);
+
+   estimation_set.index = sum(table2array(estimation_set(:,ismember(estimation_set.Properties.VariableNames,<span class="keyword">...</span>
+    index_variables))),2);
+
+    top_portfolio_data = estimation_set(estimation_set.index &gt;=top_index_criteria,:);
+    top_portfolio_data = sortrows(top_portfolio_data, {<span class="string">'permno'</span>,<span class="string">'time'</span>});
+    top_stocks = unique(top_portfolio_data.permno); <span class="comment">% Extract permno of top stocks to invest during the next quarter</span>
+
+    bottom_portfolio_data = estimation_set(estimation_set.index &lt;=bottom_index_criteria,:);
+    bottom_portfolio_data = sortrows(bottom_portfolio_data, {<span class="string">'permno'</span>,<span class="string">'time'</span>});
+    bottom_stocks = unique(bottom_portfolio_data.permno); <span class="comment">% Extract permno of bottom stocks to invest during the next quarter</span>
+
+    <span class="comment">% Next Period weights</span>
+    return_sample = dataset.time==i+1;
+    return_data = dataset(return_sample,:);
+
+    top_portfolio_data = return_data(ismember(return_data.permno,top_stocks),<span class="keyword">...</span>
+    ismember(return_data.Properties.VariableNames, {<span class="string">'ret'</span> <span class="string">'retrf'</span> <span class="string">'mktrf'</span> <span class="string">'rf'</span><span class="keyword">...</span>
+    <span class="string">'smb'</span> <span class="string">'hml'</span> <span class="string">'umd'</span> <span class="string">'cma'</span> <span class="string">'rmw'</span> <span class="string">'ps_vwf'</span>}));
+    top_stocks_w = zeros(height(top_portfolio_data),1);
+    top_stocks_w(:) = 1/height(top_portfolio_data);
+
+    bottom_portfolio_data = return_data(ismember(return_data.permno,bottom_stocks),<span class="keyword">...</span>
+    ismember(return_data.Properties.VariableNames, {<span class="string">'ret'</span> <span class="string">'retrf'</span> <span class="string">'mktrf'</span> <span class="string">'rf'</span><span class="keyword">...</span>
+    <span class="string">'smb'</span> <span class="string">'hml'</span> <span class="string">'umd'</span> <span class="string">'cma'</span> <span class="string">'rmw'</span> <span class="string">'ps_vwf'</span>}));
+    bottom_stocks_w = zeros(height(bottom_portfolio_data),1);
+    bottom_stocks_w(:) = 1/height(bottom_portfolio_data);
+
+    <span class="keyword">else</span>
+    return_sample = dataset.time==i;
+    return_data = dataset(return_sample,:);
+
+    top_portfolio_data = return_data(ismember(return_data.permno,top_stocks),<span class="keyword">...</span>
+    ismember(return_data.Properties.VariableNames, {<span class="string">'ret'</span> <span class="string">'retrf'</span> <span class="string">'mktrf'</span> <span class="string">'rf'</span><span class="keyword">...</span>
+    <span class="string">'smb'</span> <span class="string">'hml'</span> <span class="string">'umd'</span> <span class="string">'cma'</span> <span class="string">'rmw'</span> <span class="string">'ps_vwf'</span>}));
+
+    bottom_portfolio_data = return_data(ismember(return_data.permno,bottom_stocks),<span class="keyword">...</span>
+    ismember(return_data.Properties.VariableNames, {<span class="string">'ret'</span> <span class="string">'retrf'</span> <span class="string">'mktrf'</span> <span class="string">'rf'</span><span class="keyword">...</span>
+    <span class="string">'smb'</span> <span class="string">'hml'</span> <span class="string">'umd'</span> <span class="string">'cma'</span> <span class="string">'rmw'</span> <span class="string">'ps_vwf'</span>}));
+
+    <span class="keyword">if</span> height(top_portfolio_data)==length(top_stocks_w)
+       top_stocks_w = top_stocks_w; <span class="comment">%#ok&lt;*ASGSL&gt;</span>
+    <span class="keyword">else</span>
+       top_stocks_w = zeros(height(top_portfolio_data),1);
+       top_stocks_w(:) = 1/height(top_portfolio_data);
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> height(bottom_portfolio_data)==length(bottom_stocks_w)
+       bottom_stocks_w = bottom_stocks_w;
+    <span class="keyword">else</span>
+       bottom_stocks_w = zeros(height(bottom_portfolio_data),1);
+       bottom_stocks_w(:) = 1/height(bottom_portfolio_data);
+    <span class="keyword">end</span>
+
+         temp_ret = [ unique(return_data.month)  unique(return_data.time) top_stocks_w'*top_portfolio_data.ret bottom_stocks_w'*bottom_portfolio_data.ret<span class="keyword">...</span>
+              mean(top_portfolio_data.mktrf + top_portfolio_data.rf) length(top_portfolio_data.ret) length(bottom_portfolio_data.ret) top_stocks_w'*top_portfolio_data.retrf<span class="keyword">...</span>
+              bottom_stocks_w'*bottom_portfolio_data.retrf mean(top_portfolio_data.mktrf) mean(top_portfolio_data.smb) mean(top_portfolio_data.hml)<span class="keyword">...</span>
+              mean(top_portfolio_data.umd) mean(top_portfolio_data.rmw) mean(top_portfolio_data.cma) mean(top_portfolio_data.ps_vwf)<span class="keyword">...</span>
+              mean(top_portfolio_data.rf)];
+
+          portfolio_ret = [portfolio_ret; temp_ret];  <span class="comment">%#ok&lt;AGROW&gt;</span>
+
+          <span class="comment">% Next period normalized weights due to no rebalancing</span>
+             top_stocks_w = top_stocks_w.*(1+top_portfolio_data.ret);
+             top_stocks_w = normalize(top_stocks_w,<span class="string">'norm'</span>,1);
+             bottom_stocks_w = bottom_stocks_w.*(1+bottom_portfolio_data.ret);
+             bottom_stocks_w = normalize(bottom_stocks_w,<span class="string">'norm'</span>,1);
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+ portfolio_ret = portfolio_ret(2:end,:);
+ portfolio_returns = cell2table(portfolio_ret);
+
+ portfolio_returns.Properties.VariableNames = {<span class="string">'Month'</span> <span class="string">'Time'</span> <span class="string">'TopReturn'</span> <span class="string">'BottomReturn'</span> <span class="string">'MarketReturn'</span> <span class="string">'TopObs'</span> <span class="string">'BottomObs'</span> <span class="string">'TopExcess'</span><span class="keyword">...</span>
+     <span class="string">'BottomExcess'</span> <span class="string">'MKTRF'</span> <span class="string">'SMB'</span> <span class="string">'HML'</span> <span class="string">'UMD'</span> <span class="string">'RMW'</span> <span class="string">'CMA'</span> <span class="string">'LIQ'</span> <span class="string">'Rf'</span> };
+
+ TopPerformance = fitlm(portfolio_returns,TopPerfModel);
+ IR_top = (TopPerformance.Coefficients{1,1}/sqrt(TopPerformance.SSE/TopPerformance.NumObservations))*sqrt(12);
+ TopPerformance = TopPerformance.Coefficients;
+
+ BottomPerformance = fitlm(portfolio_returns,BottomPerfModel);
+ IR_bottom = (BottomPerformance.Coefficients{1,1}/sqrt(BottomPerformance.SSE/BottomPerformance.NumObservations))*sqrt(12);
+ BottomPerformance = BottomPerformance.Coefficients;
+
+ top_portfolio_statistics =array2table([mean(portfolio_returns.TopReturn) <span class="keyword">...</span>
+                    std(portfolio_returns.TopReturn) <span class="keyword">...</span>
+                    min(portfolio_returns.TopReturn)<span class="keyword">...</span>
+                    (mean(portfolio_returns.TopExcess)/std(portfolio_returns.TopExcess))*sqrt(12)<span class="keyword">...</span>
+                    IR_top]);
+
+ top_portfolio_statistics.Properties.VariableNames = {<span class="string">'Mean'</span> <span class="string">'Volatility'</span> <span class="string">'MaxDrawdown'</span> <span class="string">'SharpeRatio'</span> <span class="string">'InformationRatio'</span>};
+
+ bottom_portfolio_statistics =array2table([mean(portfolio_returns.BottomReturn) <span class="keyword">...</span>
+                    std(portfolio_returns.BottomReturn) <span class="keyword">...</span>
+                    min(portfolio_returns.BottomReturn)<span class="keyword">...</span>
+                   (mean(portfolio_returns.BottomExcess)/std(portfolio_returns.BottomExcess))*sqrt(12)<span class="keyword">...</span>
+                   IR_bottom]);
+
+ bottom_portfolio_statistics.Properties.VariableNames = {<span class="string">'Mean'</span> <span class="string">'Volatility'</span> <span class="string">'MaxDrawdown'</span> <span class="string">'SharpeRatio'</span> <span class="string">'InformationRatio'</span>};
+
+
+ plot_data = portfolio_returns(:,ismember(portfolio_returns.Properties.VariableNames,{<span class="string">'Month'</span> <span class="string">'Time'</span> <span class="string">'TopReturn'</span> <span class="string">'BottomReturn'</span> <span class="string">'MarketReturn'</span> <span class="string">'TopObs'</span> <span class="string">'BottomObs'</span> <span class="string">'Rf'</span>}));
+ plot_data.MarketReturn = plot_data.MarketReturn+plot_data.Rf;
+ plot_data = [{year_start,0, 1, 1, 1, 0, 0, 0};plot_data];
+ plot_data.TopReturn(2:end) = cumprod(plot_data.TopReturn(2:end)+1);
+ plot_data.BottomReturn(2:end) = cumprod(plot_data.BottomReturn(2:end)+1);
+ plot_data.MarketReturn(2:end) = cumprod(plot_data.MarketReturn(2:end)+1);
+
+ figure;
+ y = timeseries(plot_data{:,3:5});
+ y.Name = <span class="string">'Cumulative Return'</span>;
+ y.TimeInfo.Units = <span class="string">'months'</span>;
+ y.TimeInfo.StartDate = convertStringsToChars(string(year_start));
+ y.TimeInfo.Format = <span class="string">'yyyy'</span>;
+ performance_plot = plot(y);
+ title(<span class="string">'Portfolio Performance'</span>);
+ xlabel(<span class="string">'Time'</span>);
+ ylabel(<span class="string">'Cumulative Return'</span>);
+ legend(<span class="string">'Top Portfolio'</span>,<span class="string">'Bottom Portfolio'</span>,<span class="string">'Market Return'</span>,<span class="string">'Location'</span>,<span class="string">'northwest'</span>);
+ grid <span class="string">on</span>;
+
+ figure;
+ y = timeseries(plot_data{:,3:5});
+ y.Name = <span class="string">'Cumulative Return'</span>;
+ y.TimeInfo.Units = <span class="string">'months'</span>;
+ y.TimeInfo.StartDate = convertStringsToChars(string(year_start));
+ y.TimeInfo.Format = <span class="string">'yyyy'</span>;
+ performance_plot_log = plot(y);
+ title(<span class="string">'Portfolio Performance (Log Scale)'</span>);
+ xlabel(<span class="string">'Time'</span>);
+ ylabel(<span class="string">'Cumulative Return'</span>);
+ legend(<span class="string">'Top Portfolio'</span>,<span class="string">'Bottom Portfolio'</span>,<span class="string">'Market Return'</span>,<span class="string">'Location'</span>,<span class="string">'northwest'</span>);
+ grid <span class="string">on</span>;
+ set(gca, <span class="string">'YScale'</span>, <span class="string">'log'</span>);
+
+ figure;
+ y = timeseries(plot_data{2:end,6:7});
+ y.Name = <span class="string">'Number of Portfolio Firms'</span>;
+ y.TimeInfo.Units = <span class="string">'months'</span>;
+ y.TimeInfo.StartDate = convertStringsToChars(string(year_start));
+ y.TimeInfo.Format = <span class="string">'yyyy'</span>;
+ obs_plot = plot(y);
+ title(<span class="string">'Number of Portfolio Firms'</span>);
+ xlabel(<span class="string">'Time'</span>);
+ ylabel(<span class="string">'Number of Firms'</span>);
+ legend(<span class="string">'Top Portfolio'</span>,<span class="string">'Bottom Portfolio'</span>,<span class="string">'Location'</span>,<span class="string">'northwest'</span>);
+ grid <span class="string">on</span>;
+
+<span class="keyword">end</span>
+</pre><p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2018b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+function [TopPerformance,BottomPerformance,top_portfolio_statistics,bottom_portfolio_statistics,portfolio_returns,performance_plot,performance_plot_log,obs_plot] = ...
+    PortfolioBacktest(dataset,year_start,year_end,window,quantiles,top_index_criteria,bottom_index_criteria,...
+    rebalancing_intervall,index_variables,TopPerfModel,BottomPerfModel)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% This function backtests the portfolio performances of the share
+% repruchase strategy for the top portolio and the bottom portfolio for the
+% specified index thresholds.
+%
+% Inputs: Data, Starting Year, Ending Year, estimation window lenght, 
+% quantiles, top criteria, bottom criteria, rebalancing frequency, index
+% variables, and performance evaluation models
+%
+% Ouput: Performance evaluation, portfolio statistics, and Time-Series
+%
+% Author: Sascha Jakob
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Time Period and Dataset/Variables
+time_period = dataset.year>=(year_start-(window/12))&dataset.year<=(year_end);
+dataset = dataset(time_period,:);
+dataset.time = dataset.time-min(dataset.time)-(window-1);
+dataset = dataset(:, ismember(dataset.Properties.VariableNames,...
+    {'month','time','dealnumber','year','permno','time','entropy_H',...
+    'entropy_I','cash_atl1','ivol','top10instown_percl1','payout_yield_all',...
+    'ret','rf','mktrf','smb','hml','umd','rmw','cma','ps_vwf','mkvalt',...
+    'vol_shares_mean', 'vol_dollar_mean','ret_sd','buyback', 'retrf'}));
+
+dataset.ret(isnan(dataset.ret)) = 0;
+dataset.retrf(isnan(dataset.retrf))=0;
+
+% Inital month
+estimation_data = dataset.time>=(0-window+1)&dataset.time<=(0);
+estimation_set = dataset(estimation_data,:);
+quantile_data = estimation_set.buyback==1;
+quantile_set = estimation_set(quantile_data,:);
+quantile_set = quantile_set(:, ismember(quantile_set.Properties.VariableNames, {'dealnumber','year','permno','time','entropy_H',...
+    'entropy_I','cash_atl1','ivol','top10instown_percl1','payout_yield_all'}));
+return_sample  = dataset.time==0;
+return_data = dataset(return_sample,:);
+
+    quantile_set = sortrows(quantile_set, {'year','permno','time'}); 
+        quantile_set.H_quantile = yearly_quantiles(quantile_set.entropy_H,quantiles,quantile_set.year);
+        quantile_set.H_quantile(quantile_set.H_quantile==0)=NaN;
+        quantile_set.I_quantile = yearly_quantiles(quantile_set.entropy_I,quantiles,quantile_set.year);
+        quantile_set.I_quantile(quantile_set.I_quantile==0)=NaN;
+        quantile_set.cash_quantile = yearly_quantiles(quantile_set.cash_atl1,quantiles,quantile_set.year);
+        quantile_set.cash_quantile(quantile_set.cash_quantile==0)=NaN;
+        quantile_set.ivol_quantile = yearly_quantiles(quantile_set.ivol,quantiles,quantile_set.year);
+        quantile_set.ivol_quantile(quantile_set.ivol_quantile==0)=NaN;
+        quantile_set.ownership_quantile = yearly_quantiles(quantile_set.top10instown_percl1,quantiles,quantile_set.year);
+        quantile_set.ownership_quantile(quantile_set.ownership_quantile==0)=NaN;
+        quantile_set.payout_quantile = yearly_quantiles(quantile_set.payout_yield_all,quantiles,quantile_set.year);
+        quantile_set.payout_quantile(quantile_set.payout_quantile==0)=NaN;
+    quantile_set = sortrows(quantile_set, {'permno','time'});
+
+quantile_set = quantile_set(:, ismember(quantile_set.Properties.VariableNames, {'dealnumber','permno',...
+    'H_quantile','I_quantile','cash_quantile','ivol_quantile','ownership_quantile','payout_quantile'}));
+
+estimation_set = outerjoin(estimation_set,quantile_set,'Keys',{'permno','dealnumber'},'MergeKeys',true);
+estimation_set.ownership_quantile = estimation_set.ownership_quantile.*(-1)+(quantiles+1);
+
+  estimation_set.index = sum(table2array(estimation_set(:,ismember(estimation_set.Properties.VariableNames,...
+    index_variables))),2);
+  
+top_portfolio_data = estimation_set(estimation_set.index >=top_index_criteria,:);
+top_portfolio_data = sortrows(top_portfolio_data, {'permno','time'}); 
+top_stocks = unique(top_portfolio_data.permno); % Extract permno of top stocks to invest during the next quarter
+
+bottom_portfolio_data = estimation_set(estimation_set.index <=bottom_index_criteria,:);
+bottom_portfolio_data = sortrows(bottom_portfolio_data, {'permno','time'}); 
+bottom_stocks = unique(bottom_portfolio_data.permno); % Extract permno of bottom stocks to invest during the next quarter
+
+portfolio_ret = [unique(return_data.month) 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];
+
+% Next Period weights
+return_sample = dataset.time==1;
+return_data = dataset(return_sample,:);
+
+    top_portfolio_data = return_data(ismember(return_data.permno,top_stocks),...
+    ismember(return_data.Properties.VariableNames, {'ret' 'retrf' 'mktrf' 'rf'...
+    'smb' 'hml' 'umd' 'cma' 'rmw' 'ps_vwf'}));
+    top_stocks_w = zeros(height(top_portfolio_data),1);
+    top_stocks_w(:) = 1/height(top_portfolio_data);
+    
+    bottom_portfolio_data = return_data(ismember(return_data.permno,bottom_stocks),...
+    ismember(return_data.Properties.VariableNames, {'ret' 'retrf' 'mktrf' 'rf'...
+    'smb' 'hml' 'umd' 'cma' 'rmw' 'ps_vwf'}));
+    bottom_stocks_w = zeros(height(bottom_portfolio_data),1);
+    bottom_stocks_w(:) = 1/height(bottom_portfolio_data);
+
+% subsequent months
+for i = 1:max(dataset.time)
+    
+    if mod(i,rebalancing_intervall)==0
+         
+    estimation_data = dataset.time>=(i-window+1)&dataset.time<=(i);
+    estimation_set = dataset(estimation_data,:);
+    quantile_data = estimation_set.buyback==1;
+    quantile_set = estimation_set(quantile_data,:);
+    quantile_set = quantile_set(:, ismember(quantile_set.Properties.VariableNames, {'dealnumber','year','permno','time','entropy_H',...
+    'entropy_I','cash_atl1','ivol','top10instown_percl1','payout_yield_all'}));
+    return_sample = dataset.time==i;
+    return_data = dataset(return_sample,:);
+    
+    top_portfolio_data = return_data(ismember(return_data.permno,top_stocks),...
+    ismember(return_data.Properties.VariableNames, {'ret' 'retrf' 'mktrf' 'rf'...
+    'smb' 'hml' 'umd' 'cma' 'rmw' 'ps_vwf'}));
+  
+    bottom_portfolio_data = return_data(ismember(return_data.permno,bottom_stocks),...
+    ismember(return_data.Properties.VariableNames, {'ret' 'retrf' 'mktrf' 'rf'...
+    'smb' 'hml' 'umd' 'cma' 'rmw' 'ps_vwf'}));
+
+        if height(top_portfolio_data)==length(top_stocks_w)
+            top_stocks_w = top_stocks_w;
+        else
+             top_stocks_w = zeros(height(top_portfolio_data),1);
+             top_stocks_w(:) = 1/height(top_portfolio_data);
+        end
+
+        if height(bottom_portfolio_data)==length(bottom_stocks_w)
+             bottom_stocks_w = bottom_stocks_w;
+        else
+             bottom_stocks_w = zeros(height(bottom_portfolio_data),1);
+            bottom_stocks_w(:) = 1/height(bottom_portfolio_data);
+        end
+
+    temp_ret = [ unique(return_data.month) unique(return_data.time) top_stocks_w'*top_portfolio_data.ret bottom_stocks_w'*bottom_portfolio_data.ret ...
+        mean(top_portfolio_data.mktrf + top_portfolio_data.rf) length(top_portfolio_data.ret) length(bottom_portfolio_data.ret) top_stocks_w'*top_portfolio_data.retrf...
+        bottom_stocks_w'*bottom_portfolio_data.retrf mean(top_portfolio_data.mktrf) mean(top_portfolio_data.smb) mean(top_portfolio_data.hml)...
+        mean(top_portfolio_data.umd) mean(top_portfolio_data.rmw) mean(top_portfolio_data.cma) mean(top_portfolio_data.ps_vwf)...
+        mean(top_portfolio_data.rf)];
+    
+    portfolio_ret = [portfolio_ret; temp_ret]; %#ok<AGROW>
+    
+    quantile_set = sortrows(quantile_set, {'year','permno','time'}); 
+        quantile_set.H_quantile = yearly_quantiles(quantile_set.entropy_H,quantiles,quantile_set.year);
+        quantile_set.H_quantile(quantile_set.H_quantile==0)=NaN;
+        quantile_set.I_quantile = yearly_quantiles(quantile_set.entropy_I,quantiles,quantile_set.year);
+        quantile_set.I_quantile(quantile_set.I_quantile==0)=NaN;
+        quantile_set.cash_quantile = yearly_quantiles(quantile_set.cash_atl1,quantiles,quantile_set.year);
+        quantile_set.cash_quantile(quantile_set.cash_quantile==0)=NaN;
+        quantile_set.ivol_quantile = yearly_quantiles(quantile_set.ivol,quantiles,quantile_set.year);
+        quantile_set.ivol_quantile(quantile_set.ivol_quantile==0)=NaN;
+        quantile_set.ownership_quantile = yearly_quantiles(quantile_set.top10instown_percl1,quantiles,quantile_set.year);
+        quantile_set.ownership_quantile(quantile_set.ownership_quantile==0)=NaN;
+        quantile_set.payout_quantile = yearly_quantiles(quantile_set.payout_yield_all,quantiles,quantile_set.year);
+        quantile_set.payout_quantile(quantile_set.payout_quantile==0)=NaN;
+    quantile_set = sortrows(quantile_set, {'permno','time'}); 
+    
+    quantile_set = quantile_set(:, ismember(quantile_set.Properties.VariableNames, {'dealnumber','permno',...
+        'H_quantile','I_quantile','cash_quantile','ivol_quantile','ownership_quantile','payout_quantile'}));
+
+    estimation_set = outerjoin(estimation_set,quantile_set,'Keys',{'permno','dealnumber'},'MergeKeys',true);
+
+    estimation_set.ownership_quantile = estimation_set.ownership_quantile.*(-1)+(quantiles+1);
+  
+   estimation_set.index = sum(table2array(estimation_set(:,ismember(estimation_set.Properties.VariableNames,...
+    index_variables))),2);
+
+    top_portfolio_data = estimation_set(estimation_set.index >=top_index_criteria,:);
+    top_portfolio_data = sortrows(top_portfolio_data, {'permno','time'}); 
+    top_stocks = unique(top_portfolio_data.permno); % Extract permno of top stocks to invest during the next quarter
+
+    bottom_portfolio_data = estimation_set(estimation_set.index <=bottom_index_criteria,:);
+    bottom_portfolio_data = sortrows(bottom_portfolio_data, {'permno','time'}); 
+    bottom_stocks = unique(bottom_portfolio_data.permno); % Extract permno of bottom stocks to invest during the next quarter
+       
+    % Next Period weights
+    return_sample = dataset.time==i+1;
+    return_data = dataset(return_sample,:);
+
+    top_portfolio_data = return_data(ismember(return_data.permno,top_stocks),...
+    ismember(return_data.Properties.VariableNames, {'ret' 'retrf' 'mktrf' 'rf'...
+    'smb' 'hml' 'umd' 'cma' 'rmw' 'ps_vwf'}));
+    top_stocks_w = zeros(height(top_portfolio_data),1);
+    top_stocks_w(:) = 1/height(top_portfolio_data);
+    
+    bottom_portfolio_data = return_data(ismember(return_data.permno,bottom_stocks),...
+    ismember(return_data.Properties.VariableNames, {'ret' 'retrf' 'mktrf' 'rf'...
+    'smb' 'hml' 'umd' 'cma' 'rmw' 'ps_vwf'}));
+    bottom_stocks_w = zeros(height(bottom_portfolio_data),1);
+    bottom_stocks_w(:) = 1/height(bottom_portfolio_data);
+    
+    else
+    return_sample = dataset.time==i;
+    return_data = dataset(return_sample,:);
+
+    top_portfolio_data = return_data(ismember(return_data.permno,top_stocks),...
+    ismember(return_data.Properties.VariableNames, {'ret' 'retrf' 'mktrf' 'rf'...
+    'smb' 'hml' 'umd' 'cma' 'rmw' 'ps_vwf'}));
+    
+    bottom_portfolio_data = return_data(ismember(return_data.permno,bottom_stocks),...
+    ismember(return_data.Properties.VariableNames, {'ret' 'retrf' 'mktrf' 'rf'...
+    'smb' 'hml' 'umd' 'cma' 'rmw' 'ps_vwf'}));
+
+    if height(top_portfolio_data)==length(top_stocks_w)
+       top_stocks_w = top_stocks_w; %#ok<*ASGSL>
+    else
+       top_stocks_w = zeros(height(top_portfolio_data),1);
+       top_stocks_w(:) = 1/height(top_portfolio_data);
+    end
+
+    if height(bottom_portfolio_data)==length(bottom_stocks_w)
+       bottom_stocks_w = bottom_stocks_w;
+    else
+       bottom_stocks_w = zeros(height(bottom_portfolio_data),1);
+       bottom_stocks_w(:) = 1/height(bottom_portfolio_data);
+    end
+    
+         temp_ret = [ unique(return_data.month)  unique(return_data.time) top_stocks_w'*top_portfolio_data.ret bottom_stocks_w'*bottom_portfolio_data.ret...
+              mean(top_portfolio_data.mktrf + top_portfolio_data.rf) length(top_portfolio_data.ret) length(bottom_portfolio_data.ret) top_stocks_w'*top_portfolio_data.retrf...
+              bottom_stocks_w'*bottom_portfolio_data.retrf mean(top_portfolio_data.mktrf) mean(top_portfolio_data.smb) mean(top_portfolio_data.hml)...
+              mean(top_portfolio_data.umd) mean(top_portfolio_data.rmw) mean(top_portfolio_data.cma) mean(top_portfolio_data.ps_vwf)...
+              mean(top_portfolio_data.rf)];
+          
+          portfolio_ret = [portfolio_ret; temp_ret];  %#ok<AGROW>
+   
+          % Next period normalized weights due to no rebalancing
+             top_stocks_w = top_stocks_w.*(1+top_portfolio_data.ret);
+             top_stocks_w = normalize(top_stocks_w,'norm',1);
+             bottom_stocks_w = bottom_stocks_w.*(1+bottom_portfolio_data.ret);
+             bottom_stocks_w = normalize(bottom_stocks_w,'norm',1);
+    end
+end
+
+ portfolio_ret = portfolio_ret(2:end,:);
+ portfolio_returns = cell2table(portfolio_ret);
+ 
+ portfolio_returns.Properties.VariableNames = {'Month' 'Time' 'TopReturn' 'BottomReturn' 'MarketReturn' 'TopObs' 'BottomObs' 'TopExcess'...
+     'BottomExcess' 'MKTRF' 'SMB' 'HML' 'UMD' 'RMW' 'CMA' 'LIQ' 'Rf' };
+ 
+ TopPerformance = fitlm(portfolio_returns,TopPerfModel);
+ IR_top = (TopPerformance.Coefficients{1,1}/sqrt(TopPerformance.SSE/TopPerformance.NumObservations))*sqrt(12);
+ TopPerformance = TopPerformance.Coefficients;
+ 
+ BottomPerformance = fitlm(portfolio_returns,BottomPerfModel);
+ IR_bottom = (BottomPerformance.Coefficients{1,1}/sqrt(BottomPerformance.SSE/BottomPerformance.NumObservations))*sqrt(12);
+ BottomPerformance = BottomPerformance.Coefficients;
+ 
+ top_portfolio_statistics =array2table([mean(portfolio_returns.TopReturn) ...
+                    std(portfolio_returns.TopReturn) ...
+                    min(portfolio_returns.TopReturn)...
+                    (mean(portfolio_returns.TopExcess)/std(portfolio_returns.TopExcess))*sqrt(12)...
+                    IR_top]);
+                
+ top_portfolio_statistics.Properties.VariableNames = {'Mean' 'Volatility' 'MaxDrawdown' 'SharpeRatio' 'InformationRatio'};
+ 
+ bottom_portfolio_statistics =array2table([mean(portfolio_returns.BottomReturn) ...
+                    std(portfolio_returns.BottomReturn) ...
+                    min(portfolio_returns.BottomReturn)...
+                   (mean(portfolio_returns.BottomExcess)/std(portfolio_returns.BottomExcess))*sqrt(12)...
+                   IR_bottom]);
+                
+ bottom_portfolio_statistics.Properties.VariableNames = {'Mean' 'Volatility' 'MaxDrawdown' 'SharpeRatio' 'InformationRatio'};
+ 
+ 
+ plot_data = portfolio_returns(:,ismember(portfolio_returns.Properties.VariableNames,{'Month' 'Time' 'TopReturn' 'BottomReturn' 'MarketReturn' 'TopObs' 'BottomObs' 'Rf'}));
+ plot_data.MarketReturn = plot_data.MarketReturn+plot_data.Rf;
+ plot_data = [{year_start,0, 1, 1, 1, 0, 0, 0};plot_data];
+ plot_data.TopReturn(2:end) = cumprod(plot_data.TopReturn(2:end)+1);
+ plot_data.BottomReturn(2:end) = cumprod(plot_data.BottomReturn(2:end)+1);
+ plot_data.MarketReturn(2:end) = cumprod(plot_data.MarketReturn(2:end)+1);
+ 
+ figure;
+ y = timeseries(plot_data{:,3:5});
+ y.Name = 'Cumulative Return';
+ y.TimeInfo.Units = 'months';
+ y.TimeInfo.StartDate = convertStringsToChars(string(year_start));
+ y.TimeInfo.Format = 'yyyy';
+ performance_plot = plot(y);
+ title('Portfolio Performance');
+ xlabel('Time');
+ ylabel('Cumulative Return');
+ legend('Top Portfolio','Bottom Portfolio','Market Return','Location','northwest');
+ grid on;
+
+ figure;
+ y = timeseries(plot_data{:,3:5});
+ y.Name = 'Cumulative Return';
+ y.TimeInfo.Units = 'months';
+ y.TimeInfo.StartDate = convertStringsToChars(string(year_start));
+ y.TimeInfo.Format = 'yyyy';
+ performance_plot_log = plot(y);
+ title('Portfolio Performance (Log Scale)');
+ xlabel('Time');
+ ylabel('Cumulative Return');
+ legend('Top Portfolio','Bottom Portfolio','Market Return','Location','northwest');
+ grid on;
+ set(gca, 'YScale', 'log');
+ 
+ figure;
+ y = timeseries(plot_data{2:end,6:7});
+ y.Name = 'Number of Portfolio Firms';
+ y.TimeInfo.Units = 'months';
+ y.TimeInfo.StartDate = convertStringsToChars(string(year_start));
+ y.TimeInfo.Format = 'yyyy';
+ obs_plot = plot(y);
+ title('Number of Portfolio Firms');
+ xlabel('Time');
+ ylabel('Number of Firms');
+ legend('Top Portfolio','Bottom Portfolio','Location','northwest');
+ grid on;
+ 
+end
+
+
+##### SOURCE END #####
+--></body></html>
